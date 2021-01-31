@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Data;
+using System.Data.SQLite;
 
 namespace GHSoftware.SimpleDb
 {
@@ -8,7 +9,7 @@ namespace GHSoftware.SimpleDb
     /// </summary>
     public abstract class DbConnSqlite : BaseDbConn
     {
-      //  protected SQLiteConnection conn;
+        protected SQLiteConnection conn;
 
         public override long LastInsertId()
         {
