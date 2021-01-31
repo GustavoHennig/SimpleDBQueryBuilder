@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30907.101
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SimpleDBQueryBuilder", "SimpleDBQueryBuilder\SimpleDBQueryBuilder.csproj", "{44D6CC5C-AD6B-492C-A87F-6F0A6109072B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleDBQueryBuilder.Sqlite", "SimpleDBQueryBuilder.Sqlite\SimpleDBQueryBuilder.Sqlite.csproj", "{A4C9B30A-7578-470F-AC9E-707D1037C7A5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C55E5EDF-10F3-4521-8F6D-3F81D524F9FC}"
+	ProjectSection(SolutionItems) = preProject
+		LICENSE = LICENSE
+		README.md = README.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{44D6CC5C-AD6B-492C-A87F-6F0A6109072B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{44D6CC5C-AD6B-492C-A87F-6F0A6109072B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{44D6CC5C-AD6B-492C-A87F-6F0A6109072B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{44D6CC5C-AD6B-492C-A87F-6F0A6109072B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A4C9B30A-7578-470F-AC9E-707D1037C7A5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A4C9B30A-7578-470F-AC9E-707D1037C7A5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A4C9B30A-7578-470F-AC9E-707D1037C7A5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A4C9B30A-7578-470F-AC9E-707D1037C7A5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0A76084F-0EF1-4347-A5DA-A61A810340FD}
+	EndGlobalSection
+EndGlobal

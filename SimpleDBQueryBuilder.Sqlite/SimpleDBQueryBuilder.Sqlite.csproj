@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>GHSoftware.SimpleDb.Sqlite</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SimpleDBQueryBuilder\SimpleDBQueryBuilder.csproj" />
+  </ItemGroup>
+
+</Project>
