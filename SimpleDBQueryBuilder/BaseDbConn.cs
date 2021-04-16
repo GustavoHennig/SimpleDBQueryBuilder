@@ -6,25 +6,26 @@ using System.Threading;
 
 namespace GHSoftware.SimpleDb
 {
-    public abstract class BaseDbConn
+    public abstract class BaseDbConn : IDisposable
     {
-        private DbConnection conn;
+        protected DbConnection conn;
         public bool Initialized = false;
         protected abstract DbConnection CreateConnection();
         protected object openCloseSync = new object();
+        /// <summary>
+        /// TODO: Remove it from here, it's a Sqlite field
+        /// </summary>
         protected string DbFileName;
         public string Name;
         int operationsRunning = 0;
         protected List<string> Migrations = new List<string>();
 
-        public Action<string> OnLog = null;
-        public void Initialize(int attempts = 5, Func<DbException, bool> onSqlErrorRetry = null)
+        public void Initialize(int attempts = 5)
 
         {
             try
             {
                 conn = CreateConnection();
-                //TODO: Se ocorrer exceção aqui, pensar em mecanismo de auto recuperação
                 Open();
                 using (var com = conn.CreateCommand())
                 {
@@ -36,15 +37,13 @@ namespace GHSoftware.SimpleDb
             {
                 Close();
                 bool retried = false;
-                if (onSqlErrorRetry != null)
+
+                if (OnSqlErrorRetry(ex, attempts))
                 {
-                    if (onSqlErrorRetry(ex))
+                    if (attempts > 0)
                     {
-                        if (attempts > 0)
-                        {
-                            Initialize(--attempts);
-                            retried = true;
-                        }
+                        Initialize(--attempts);
+                        retried = true;
                     }
                 }
 
@@ -70,7 +69,7 @@ namespace GHSoftware.SimpleDb
             }
             catch (Exception ex)
             {
-                OnLog?.Invoke($"RecreateConnection Close {Name} {ex}");
+                OnLog($"RecreateConnection Close {Name} {ex}");
             }
             Initialize(2);
         }
@@ -109,10 +108,21 @@ namespace GHSoftware.SimpleDb
                     }
                     catch (Exception ex)
                     {
-                        OnLog?.Invoke($"Failed to close connection {Name} {ex}");
+                        OnLog($"Failed to close connection {Name} {ex}");
                     }
 
                 }
+            }
+        }
+        public void Dispose()
+        {
+            Close();
+            try
+            {
+                conn?.Dispose();
+            }
+            catch (Exception)
+            {
             }
         }
 
@@ -147,7 +157,7 @@ namespace GHSoftware.SimpleDb
                 }
                 else
                 {
-                    OnLog?.Invoke("Failed to lock to tryclose");
+                    OnLog("Failed to lock to tryclose");
                 }
             }
             finally
@@ -159,6 +169,17 @@ namespace GHSoftware.SimpleDb
 
 
         public abstract void OnAfterOpenConnection(IDbCommand dbCommand);
+
+        /// <summary>
+        /// Called after each retry when opening connection, must return true to continue retrying.
+        /// >> Should this method be virtual?
+        /// </summary>
+        /// <param name="ex"></param>
+        /// <param name="attempt"></param>
+        /// <returns></returns>
+        public abstract bool OnSqlErrorRetry(DbException ex, int attempt);
+
+
         public void RunMigrations(IDbCommand com)
         {
 
@@ -168,7 +189,7 @@ namespace GHSoftware.SimpleDb
             {
                 dbTransaction = conn.BeginTransaction();
 
-                com.CommandText = "PRAGMA user_version;";
+                com.CommandText = QueryToRetrieveSchemaVersion();
                 int userVersion = Convert.ToInt32((long)com.ExecuteScalar());
 
                 int i;
@@ -186,7 +207,7 @@ namespace GHSoftware.SimpleDb
                     }
                 }
 
-                com.CommandText = $"PRAGMA user_version = {i};";
+                com.CommandText = QueryToSetSchemaVersion(i);
                 com.ExecuteNonQuery();
 
                 dbTransaction.Commit();
@@ -241,6 +262,9 @@ namespace GHSoftware.SimpleDb
         }
 
         public abstract long LastInsertId();
+        public abstract string QueryToRetrieveSchemaVersion();
+        public abstract string QueryToSetSchemaVersion(int value);
+        public abstract void OnLog(string msg);
 
         public DbTransaction BeginTransaction()
         {

@@ -34,9 +34,34 @@ namespace GHSoftware.SimpleDb
         }
         public T GetValue<T>(object[] row, string columnName)
         {
-            if (typeof(T) == typeof(DateTime?))
+            return ConvertValue<T>(row[ColumnsHash[columnName]]);
+        }
+
+        public T GetValue<T>(object[] row, Enum column)
+        {
+            return GetValue<T>(row, column.ToString());
+        }
+
+        public T GetValue<T>(int rowIndex, string columnName)
+        {
+            return ConvertValue<T>(RawResult[rowIndex][ColumnsHash[columnName]]);
+        }
+
+        public T GetValue<T>(int rowIndex, int columnIndex)
+        {
+            return ConvertValue<T>(RawResult[rowIndex][columnIndex]);
+        }
+
+        private T ConvertValue<T>(object obj)
+        {
+
+            if (obj == null || obj is DBNull)
             {
-                string s = GetValue<string>(row, columnName);
+                return default(T);
+            }
+            else if (typeof(T) == typeof(DateTime?))
+            {
+                string s = ConvertValue<string>(obj);
 
                 if (DateTime.TryParse(s, out DateTime dt))
                 {
@@ -47,25 +72,22 @@ namespace GHSoftware.SimpleDb
                     return default(T);
                 }
             }
-            if (row[ColumnsHash[columnName]] is DBNull)
-                return default(T);
-            return (T)row[ColumnsHash[columnName]];
+            else if (typeof(T) == typeof(long))
+            {
+                return (T)(object)Convert.ToInt64(obj);
         }
-
-        public T GetValue<T>(object[] row, Enum column)
+            else if (typeof(T) == typeof(int))
         {
-           
-            return GetValue<T>(row, column.ToString());
+                return (T)(object)Convert.ToInt32(obj);
         }
-
-        public T GetValue<T>(int rowIndex, string columnName)
+            else if (typeof(T).IsEnum)
         {
-            return (T)RawResult[rowIndex][ColumnsHash[columnName]];
+                return (T)Enum.Parse(typeof(T), obj.ToString());
         }
-
-        public T GetValue<T>(int rowIndex, int columnIndex)
+            else
         {
-            return (T)RawResult[rowIndex][columnIndex];
+                return (T)obj;
+            }
         }
 
         public void AddSingle(object value)
@@ -100,7 +122,7 @@ namespace GHSoftware.SimpleDb
             }
         }
 
-        internal bool Any()
+        public bool Any()
         {
             return RawResult.Count > 0;
         }

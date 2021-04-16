@@ -21,6 +21,7 @@ namespace GHSoftware.SimpleDb
         // public long CurrentSize = 0;
 
         public Action<string> OnLog = null;
+        public Action OnQueryRunnerStopped = null;
 
 
         private object _sync = new object();
@@ -80,6 +81,7 @@ namespace GHSoftware.SimpleDb
                 finally
                 {
                     QueueProcessingIsRunning = false;
+                    OnQueryRunnerStopped?.Invoke();
                 }
             });
         }
