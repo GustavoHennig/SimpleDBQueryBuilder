@@ -99,7 +99,7 @@ namespace GHSoftware.SimpleDb
                 {
                     if (!conn.Initialized)
                     {
-                        Task.Delay(100);
+                        Task.Delay(100).Wait();
                         continue;
                     }
 
@@ -136,7 +136,7 @@ namespace GHSoftware.SimpleDb
                         throw;
 
                     conn.Close();
-                    Task.Delay(400);
+                    Task.Delay(400).Wait();
                     conn.Open();
 
                     cntErros++;
@@ -200,7 +200,10 @@ namespace GHSoftware.SimpleDb
                     {
                       //  conn.Close();
                         var result = conn.ExecuteDbRequest(dbRequest);
-                        dbRequest.TaskCompletionSource.TrySetResult(result);
+                        if (!dbRequest.TaskCompletionSource.TrySetResult(result))
+                        {
+                            OnLog?.Invoke("Wasn't able to set result");
+                        }
 
                     }
                     
@@ -216,7 +219,7 @@ namespace GHSoftware.SimpleDb
             }
             catch (Exception ex)
             {
-                OnLog?.Invoke("ExecuteDbRequest {ex}");
+                OnLog?.Invoke($"ExecuteDbRequest {ex}");
 
                 try
                 {
