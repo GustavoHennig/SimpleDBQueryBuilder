@@ -8,6 +8,10 @@ using System.Threading.Tasks;
 namespace GHSoftware.SimpleDb
 {
     /// <summary>
+    /// Expermiental RequestsQueue
+    /// 
+    /// WARNING: This is not trustable, you may lose data when an error occurs
+    /// 
     /// TODO: Handle SQLITE_BUSY (não ocorre, mas é bom tratar)
     /// TODO: Test with exclusive lock mode, reusing connection
     /// </summary>
@@ -19,6 +23,7 @@ namespace GHSoftware.SimpleDb
         private BaseDbConn conn;
         private bool disposedValue;
         // public long CurrentSize = 0;
+        public int RetryAttemptsWithConnectionFailure = 10000;
 
         public Action<string> OnLog = null;
         public Action OnQueryRunnerStopped = null;
@@ -68,7 +73,7 @@ namespace GHSoftware.SimpleDb
                 try
                 {
                     QueueProcessingIsRunning = true;
-                    conn.Initialize();
+                    conn.InitializeFull();
                     conn.Open();
                     ProcessQueueItem(batchSize);
                     OnLog?.Invoke($"ProcessQueueItem {conn.Name} stopped");
@@ -131,13 +136,20 @@ namespace GHSoftware.SimpleDb
                 }
                 catch (Exception ex)
                 {
-                    OnLog?.Invoke($"DbQueue: {ex}");
-                    if (cntErros > 10)
+                    OnLog?.Invoke($"DbQueue error (some commands were lost): {ex} ");
+                    if (cntErros > RetryAttemptsWithConnectionFailure)
                         throw;
 
-                    conn.Close();
-                    Task.Delay(400).Wait();
-                    conn.Open();
+                    try
+                    {
+                        conn.Close();
+                        Task.Delay(400).Wait();
+                        conn.Open();
+                    }
+                    catch (Exception exRecon)
+                    {
+                        OnLog?.Invoke($"Recon  error (some commands were lost): {exRecon}");
+                    }
 
                     cntErros++;
                 }

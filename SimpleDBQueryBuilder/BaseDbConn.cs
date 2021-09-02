@@ -19,8 +19,9 @@ namespace GHSoftware.SimpleDb
         public string Name;
         int operationsRunning = 0;
         protected List<string> Migrations = new List<string>();
+        protected IdentityRetrieveMode IdentityRetrieve = IdentityRetrieveMode.LastInsertId;
 
-        public void Initialize(int attempts = 5)
+        public void InitializeFull(int attempts = 5)
 
         {
             try
@@ -42,7 +43,7 @@ namespace GHSoftware.SimpleDb
                 {
                     if (attempts > 0)
                     {
-                        Initialize(--attempts);
+                        InitializeFull(--attempts);
                         retried = true;
                     }
                 }
@@ -61,6 +62,11 @@ namespace GHSoftware.SimpleDb
             }
         }
 
+        public void InitializeSlim()
+        {
+            conn = CreateConnection();
+        }
+
         public void RecreateConnection()
         {
             try
@@ -71,7 +77,7 @@ namespace GHSoftware.SimpleDb
             {
                 OnLog($"RecreateConnection Close {Name} {ex}");
             }
-            Initialize(2);
+            InitializeFull(2);
         }
 
         public bool IsOpen()
@@ -220,45 +226,51 @@ namespace GHSoftware.SimpleDb
 
         public DbResult ExecuteDbRequest(DbRequest dbRequest)
         {
-
-            var dbCommand = conn.CreateCommand();
-
-            if (dbRequest.Parameters != null)
-                foreach (var kv in dbRequest.Parameters)
-                {
-                    var p = dbCommand.CreateParameter();
-                    p.ParameterName = "@" + kv.Key;
-                    if (kv.Value == null)
-                        p.Value = DBNull.Value;
-                    else
-                        p.Value = kv.Value;
-                    dbCommand.Parameters.Add(p);
-                }
+            using (var dbCommand = conn.CreateCommand())
+            {
+                if (dbRequest.Parameters != null)
+                    foreach (var kv in dbRequest.Parameters)
+                    {
+                        var p = dbCommand.CreateParameter();
+                        p.ParameterName = "@" + kv.Key;
+                        if (kv.Value == null)
+                            p.Value = DBNull.Value;
+                        else
+                            p.Value = kv.Value;
+                        dbCommand.Parameters.Add(p);
+                    }
 
 #pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
-            dbCommand.CommandText = dbRequest.Sql;
+                dbCommand.CommandText = dbRequest.Sql;
 #pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
 
-            if (dbRequest.Type == DbRequest.CmdType.Command)
-            {
-                dbRequest.DbResult.AddSingle(dbCommand.ExecuteNonQuery());
-            }
-            else if (dbRequest.Type == DbRequest.CmdType.CommandWithIdentity)
-            {
-                dbCommand.ExecuteNonQuery();
-                dbRequest.DbResult.AddSingle(LastInsertId());
-            }
-            else if (dbRequest.Type == DbRequest.CmdType.Query)
-            {
-                dbRequest.DbResult.LoadFromDataReader(dbCommand.ExecuteReader(CommandBehavior.SequentialAccess));
-            }
-            else if (dbRequest.Type == DbRequest.CmdType.SingleResult)
-            {
-                dbRequest.DbResult.AddSingle(dbCommand.ExecuteScalar());
+                if (dbRequest.Type == DbRequest.CmdType.Command)
+                {
+                    dbRequest.DbResult.AddSingle(dbCommand.ExecuteNonQuery());
+                }
+                else if (dbRequest.Type == DbRequest.CmdType.CommandWithIdentity)
+                {
+                    if (IdentityRetrieve == IdentityRetrieveMode.ExecuteScalar)
+                    {
+                        dbRequest.DbResult.AddSingle(dbCommand.ExecuteScalar());
+                    }
+                    else
+                    {
+                        dbCommand.ExecuteNonQuery();
+                        dbRequest.DbResult.AddSingle(LastInsertId());
+                    }
+                }
+                else if (dbRequest.Type == DbRequest.CmdType.Query)
+                {
+                    dbRequest.DbResult.LoadFromDataReader(dbCommand.ExecuteReader(CommandBehavior.SequentialAccess));
+                }
+                else if (dbRequest.Type == DbRequest.CmdType.SingleResult)
+                {
+                    dbRequest.DbResult.AddSingle(dbCommand.ExecuteScalar());
+                }
             }
 
             return dbRequest.DbResult;
-
         }
 
         public abstract long LastInsertId();
@@ -269,6 +281,12 @@ namespace GHSoftware.SimpleDb
         public DbTransaction BeginTransaction()
         {
             return conn.BeginTransaction();
+        }
+
+        public enum IdentityRetrieveMode
+        {
+            LastInsertId,
+            ExecuteScalar
         }
     }
 }

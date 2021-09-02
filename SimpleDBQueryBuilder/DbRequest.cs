@@ -84,6 +84,17 @@ namespace GHSoftware.SimpleDb
             return dbQueue.Execute(this);
         }
 
+        /// <summary>
+        /// This is direct approach, without Producer/Consumer pattern
+        /// </summary>
+        /// <param name="dbConn"></param>
+        /// <returns></returns>
+        public DbResult RunWith(BaseDbConn dbConn)
+        {
+            return dbConn.ExecuteDbRequest(this);
+        }
+        
+
         public enum CmdType
         {
             Query,

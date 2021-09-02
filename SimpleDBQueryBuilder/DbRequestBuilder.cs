@@ -3,28 +3,38 @@ using System.Collections.Generic;
 
 namespace GHSoftware.SimpleDb
 {
-    public class DbRequestBuilder
+    public class DbRequestBuilder<TFieldEnumType>
     {
         private List<string> SelectFields = null;
         private List<KeyValuePair<string, object>> InsertUpdateValues = null;
         private List<(string key, object value, string op)> Where = null;
         private string WhereSql = null;
+        private string OrderCriteria = null;
+        private string AppendSql = null;
         private string tableName;
+        private bool IsScalar = false;
+        private string FieldQuotes = "";
 
-        public static DbRequestBuilder Of()
+        public static DbRequestBuilder<T> Of<T>()
         {
-            DbRequestBuilder DbRequestBuilder = new DbRequestBuilder();
-            return DbRequestBuilder;
+            DbRequestBuilder<T> dbRequestBuilder = new DbRequestBuilder<T>();
+            return dbRequestBuilder;
         }
 
-        public DbRequestBuilder WithSelectFields(params string[] fields)
+        //public static DbRequestBuilder<TFieldEnumType> Of<TFieldEnumType>()
+        //{
+        //    DbRequestBuilder<TFieldEnumType> dbRequestBuilder = new DbRequestBuilder<TFieldEnumType>();
+        //    return dbRequestBuilder;
+        //}
+
+        public DbRequestBuilder<TFieldEnumType> WithSelectFields(params string[] fields)
         {
             if (SelectFields == null) SelectFields = new List<string>();
             SelectFields.AddRange(fields);
             return this;
         }
 
-        public DbRequestBuilder WithSelectFields<T>(params T[] fields) where T : Enum
+        public DbRequestBuilder<TFieldEnumType> WithSelectFields<T>(params T[] fields) where T : Enum
         {
             if (SelectFields == null) SelectFields = new List<string>();
             foreach (var en in fields)
@@ -32,50 +42,99 @@ namespace GHSoftware.SimpleDb
             return this;
         }
 
-        public DbRequestBuilder WithFieldValues(List<KeyValuePair<string, object>> fieldValues)
+        public DbRequestBuilder<TFieldEnumType> WithSelectFields(params TFieldEnumType[] fields)
+        {
+            if (SelectFields == null) SelectFields = new List<string>();
+            foreach (var en in fields)
+                SelectFields.Add(en.ToString());
+            return this;
+        }
+
+
+        public DbRequestBuilder<TFieldEnumType> WithFieldValues(List<KeyValuePair<string, object>> fieldValues)
         {
             if (InsertUpdateValues == null) InsertUpdateValues = new List<KeyValuePair<string, object>>();
 
             InsertUpdateValues.AddRange(fieldValues);
             return this;
         }
-        public DbRequestBuilder WithFieldValues(string key, object value)
+        public DbRequestBuilder<TFieldEnumType> WithFieldValues(string key, object value)
         {
             if (InsertUpdateValues == null) InsertUpdateValues = new List<KeyValuePair<string, object>>();
             InsertUpdateValues.Add(new KeyValuePair<string, object>(key, value));
             return this;
         }
 
-        public DbRequestBuilder WithFieldValues<T>(T key, object value) where T : Enum
+        public DbRequestBuilder<TFieldEnumType> AppendToQuery(string sql)
+        {
+            AppendSql = sql;
+            return this;
+        }
+
+        public DbRequestBuilder<TFieldEnumType> WithFieldQuotes(string quotes = "\"")
+        {
+            FieldQuotes = quotes;
+            return this;
+        }
+
+
+        public DbRequestBuilder<TFieldEnumType> WithFieldValues<T>(T key, object value) where T : Enum
         {
             if (InsertUpdateValues == null) InsertUpdateValues = new List<KeyValuePair<string, object>>();
             InsertUpdateValues.Add(new KeyValuePair<string, object>(key.ToString(), value));
             return this;
         }
 
-        public DbRequestBuilder WhereCond(string key, object value, string oper = "=")
+        public DbRequestBuilder<TFieldEnumType> WithFieldValues(TFieldEnumType key, object value)
+        {
+            if (InsertUpdateValues == null) InsertUpdateValues = new List<KeyValuePair<string, object>>();
+            InsertUpdateValues.Add(new KeyValuePair<string, object>(key.ToString(), value));
+            return this;
+        }
+
+        public DbRequestBuilder<TFieldEnumType> WhereCond(string key, object value, string oper = "=")
         {
             if (Where == null) Where = new List<(string key, object value, string op)>();
             Where.Add((key, value, oper));
             return this;
         }
 
-        public DbRequestBuilder WhereCond(string sqlWhereCond)
+        public DbRequestBuilder<TFieldEnumType> WhereCond(string sqlWhereCond)
         {
             WhereSql = sqlWhereCond;
             return this;
         }
 
-        public DbRequestBuilder WhereCond<T>(T key, object value, string oper = "=") where T : Enum
+        public DbRequestBuilder<TFieldEnumType> WhereCond<T>(T key, object value, string oper = "=") where T : Enum
         {
             if (Where == null) Where = new List<(string key, object value, string op)>();
             Where.Add((key.ToString(), value, oper));
             return this;
         }
 
-        public DbRequestBuilder WithTable(string tableName)
+        public DbRequestBuilder<TFieldEnumType> WhereCond(TFieldEnumType key, object value, string oper = "=")
+        {
+            if (Where == null) Where = new List<(string key, object value, string op)>();
+            Where.Add((key.ToString(), value, oper));
+            return this;
+        }
+
+        public DbRequestBuilder<TFieldEnumType> WithTable(string tableName)
         {
             this.tableName = tableName;
+            return this;
+        }
+
+        public DbRequestBuilder<TFieldEnumType> SetScalar(bool scalar)
+        {
+            this.IsScalar = scalar;
+            return this;
+        }
+
+
+        public DbRequestBuilder<TFieldEnumType> SetOrder(string orderCriteria)
+        {
+            OrderCriteria = orderCriteria;
             return this;
         }
 
@@ -85,8 +144,8 @@ namespace GHSoftware.SimpleDb
             string sql = "select ";
 
 
-            sql += string.Join(",", SelectFields);
-            sql += $" from {tableName}";
+            sql += FieldQuotes + string.Join($"{FieldQuotes},{FieldQuotes}", SelectFields) + FieldQuotes;
+            sql += $" from {FieldQuotes}{tableName}{FieldQuotes}";
 
 
             if (!string.IsNullOrEmpty(WhereSql))
@@ -99,13 +158,22 @@ namespace GHSoftware.SimpleDb
 
                 foreach (var (key, value, op) in Where)
                 {
-                    sql += $"{key} {op} @{key} and ";
+                    sql += $"{FieldQuotes}{key}{FieldQuotes} {op} @{key} and ";
                 }
                 sql = sql.Remove(sql.Length - 4);
             }
 
+
+            if (!string.IsNullOrEmpty(OrderCriteria))
+            {
+                sql += " order by " + OrderCriteria;
+            }
+            if (AppendSql != null)
+            {
+                sql += AppendSql;
+            }
             DbRequest dbRequest = DbRequest.Of(
-                DbRequest.CmdType.Query,
+                IsScalar ? DbRequest.CmdType.SingleResult : DbRequest.CmdType.Query,
                 sql,
                 this.SelectFields.ToArray()
                 );
@@ -126,16 +194,25 @@ namespace GHSoftware.SimpleDb
 
             foreach (var kv in InsertUpdateValues)
             {
-                sqlf += kv.Key + ",";
+                sqlf += FieldQuotes + kv.Key + FieldQuotes + ",";
                 sqlv += "@" + kv.Key + ",";
             }
 
             sqlf = sqlf.Remove(sqlf.Length - 1);
             sqlv = sqlv.Remove(sqlv.Length - 1);
 
+
+
+            string sql = $"insert into {FieldQuotes}{tableName}{FieldQuotes} ({sqlf}) values ({sqlv}) ";
+            if (AppendSql != null)
+            {
+                sql += AppendSql;
+            }
+
+
             DbRequest dbRequest = DbRequest.Of(
                 DbRequest.CmdType.CommandWithIdentity,
-                $"insert into {tableName} ({sqlf}) values ({sqlv}) ",
+                sql,
                 null,
                 InsertUpdateValues);
 
@@ -144,11 +221,11 @@ namespace GHSoftware.SimpleDb
 
         public DbRequest BuildUpdate()
         {
-            string sql = $"update {tableName} set ";
+            string sql = $"update {FieldQuotes}{tableName}{FieldQuotes} set ";
 
             foreach (var kv in InsertUpdateValues)
             {
-                sql += kv.Key + "=@" + kv.Key + ",";
+                sql += FieldQuotes + kv.Key + FieldQuotes+"=@" + kv.Key + ",";
             }
 
             sql = sql.Remove(sql.Length - 1);
@@ -162,10 +239,13 @@ namespace GHSoftware.SimpleDb
             {
                 foreach (var (key, value, op) in Where)
                 {
-                    sql += $"{key} {op} @{key} ";
+                    sql += $"{FieldQuotes}{key}{FieldQuotes} {op} @{key} ";
                 }
             }
-
+            if (AppendSql != null)
+            {
+                sql += AppendSql;
+            }
             DbRequest dbRequest = DbRequest.Of(
                DbRequest.CmdType.Command,
                sql,
@@ -180,7 +260,7 @@ namespace GHSoftware.SimpleDb
 
         public DbRequest BuildDelete()
         {
-            string sql = $"delete from {tableName} where ";
+            string sql = $"delete from {FieldQuotes}{tableName}{FieldQuotes} where ";
 
             if (!string.IsNullOrEmpty(WhereSql))
             {
@@ -190,8 +270,13 @@ namespace GHSoftware.SimpleDb
             {
                 foreach (var (key, value, op) in Where)
                 {
-                    sql += $"{key} {op} @{key} ";
+                    sql += $"{FieldQuotes}{key}{FieldQuotes} {op} @{key} ";
                 }
+            }
+
+            if (AppendSql != null)
+            {
+                sql += AppendSql;
             }
 
             DbRequest dbRequest = DbRequest.Of(
@@ -207,5 +292,14 @@ namespace GHSoftware.SimpleDb
 
 
 
+    }
+
+    public class DbRequestBuilder : DbRequestBuilder<Enum>
+    {
+        public static DbRequestBuilder Of()
+        {
+            DbRequestBuilder dbRequestBuilder = new DbRequestBuilder();
+            return dbRequestBuilder;
+        }
     }
 }
