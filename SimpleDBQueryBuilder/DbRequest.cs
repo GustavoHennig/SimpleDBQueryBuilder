@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace GHSoftware.SimpleDb
@@ -43,7 +44,7 @@ namespace GHSoftware.SimpleDb
             return dbr;
         }
 
-        public DbRequest AddRange(List<KeyValuePair<string, object>> parameters)
+        public DbRequest AddRange(IEnumerable<KeyValuePair<string, object>> parameters)
         {
             if(Parameters ==null) Parameters= new List<KeyValuePair<string, object>>();
             Parameters.AddRange(parameters);
@@ -104,5 +105,6 @@ namespace GHSoftware.SimpleDb
             CloseAsap
         }
 
+      
     }
 }
