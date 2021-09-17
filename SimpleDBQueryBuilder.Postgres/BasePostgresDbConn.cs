@@ -10,7 +10,7 @@ namespace GHSoftware.SimpleDb
     /// <summary>
     /// This is and example for Sqlite
     /// </summary>
-    public abstract class BasePostgresDbConn : BaseDbConn
+    public class BasePostgresDbConn : BaseDbConn
     {
         string connectionString;
 

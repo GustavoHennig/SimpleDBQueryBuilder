@@ -106,7 +106,7 @@ namespace GHSoftware.SimpleDb
                         int cnt = 0;
                         foreach (var par in (IEnumerable<object>)value)
                         {
-                            yield return new KeyValuePair<string, object>($"{key}_p{cnt}", value);
+                            yield return new KeyValuePair<string, object>($"{key}_p{cnt}", par);
                             cnt++;
                         }
                     }
