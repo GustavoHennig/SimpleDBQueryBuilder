@@ -1,31 +1,35 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Common;
+using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace GHSoftware.SimpleDb
 {
-    public class DbRequest
+    public class SdbRequest
+
     {
         //public long RequestSize = 0;
         public string Sql { get; private set; }
         public List<KeyValuePair<string, object>> Parameters { get; private set; }
-        public DbResult DbResult { get; private set; }
+        public SdbResult DbResult { get; private set; }
         public CmdType Type { get; private set; }
-
-        public TaskCompletionSource<DbResult> TaskCompletionSource { get; set; }
+        public int TimeOut { get; set; }
+ 
+        public TaskCompletionSource<SdbResult> TaskCompletionSource { get; set; }
         //public DbRequest(CmdType cmdType, string sql, List<KeyValuePair<string, object>> parameters = null)
         //{
         //    this.sql = sql;
         //    this.parameters = parameters;
         //    this.cmdType = cmdType;
         //}
-        private DbRequest()
+        private SdbRequest()
         {
         }
 
-        public static DbRequest Of(CmdType cmdType, string sql, string[] columnsNames = null, List<KeyValuePair<string, object>> parameters = null)
+        public static SdbRequest Of(CmdType cmdType, string sql, string[] columnsNames = null, List<KeyValuePair<string, object>> parameters = null)
         {
-            var dbr = new DbRequest
+            var dbr = new SdbRequest
             {
                 Type = cmdType,
                 Sql = sql,
@@ -34,40 +38,46 @@ namespace GHSoftware.SimpleDb
 
             if (columnsNames == null)
             {
-                dbr.DbResult = new DbResult(1);
+                dbr.DbResult = new SdbResult(1);
             }
             else
             {
-                dbr.DbResult = new DbResult(columnsNames);
+                dbr.DbResult = new SdbResult(columnsNames);
             }
 
             return dbr;
         }
 
-        public DbRequest AddRange(IEnumerable<KeyValuePair<string, object>> parameters)
+        public SdbRequest Timeout(int timeOut)
+        {
+            TimeOut = timeOut;
+            return this;
+        }
+
+        public SdbRequest AddParamRange(IEnumerable<KeyValuePair<string, object>> parameters)
         {
             if(Parameters ==null) Parameters= new List<KeyValuePair<string, object>>();
             Parameters.AddRange(parameters);
             return this;
         }
 
-        internal void AddRange(List<(string key, object value, string op)> parameters)
+        internal void AddParamRange(List<(string key, object value)> parameters)
         {
            if( Parameters == null) Parameters = new List<KeyValuePair<string, object>>();
-            foreach (var (key, value, _) in parameters)
+            foreach (var (key, value) in parameters)
             {
                 Parameters.Add(new KeyValuePair<string, object>(key, value));
             }
         }
 
-        public DbRequest AddParam(string name, object value)
+        public SdbRequest AddParam(string name, object value)
         {
             if (Parameters == null) Parameters = new List<KeyValuePair<string, object>>();
             Parameters.Add(new KeyValuePair<string, object>(name, value));
             return this;
         }
 
-        public DbRequest MergeWith(DbRequest source)
+        public SdbRequest MergeWith(SdbRequest source)
         {
             if (string.IsNullOrEmpty(Sql))
                 Sql = source.Sql;
@@ -75,26 +85,7 @@ namespace GHSoftware.SimpleDb
                 Sql += "; " + source.Sql;
             return this;
         }
-        public Task<DbResult> RunAsyncWith(DbQueue dbQueue)
-        {
-            return dbQueue.ExecuteAsync(this);
-        }
 
-        public DbResult RunWith(DbQueue dbQueue)
-        {
-            return dbQueue.Execute(this);
-        }
-
-        /// <summary>
-        /// This is direct approach, without Producer/Consumer pattern
-        /// </summary>
-        /// <param name="dbConn"></param>
-        /// <returns></returns>
-        public DbResult RunWith(BaseDbConn dbConn)
-        {
-            return dbConn.ExecuteDbRequest(this);
-        }
-        
 
         public enum CmdType
         {

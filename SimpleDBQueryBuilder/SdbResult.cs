@@ -8,20 +8,20 @@ namespace GHSoftware.SimpleDb
     /// <summary>
     /// It is a lightweight DataTable and offline DataReader :)
     /// </summary>
-    public class DbResult
+    public class SdbResult
     {
         public List<object[]> RawResult = null;
         public Dictionary<string, int> ColumnsHash = null;
         public int ColumnsCount;
 
 
-        public DbResult(int columnsCount)
+        public SdbResult(int columnsCount)
         {
             ColumnsCount = columnsCount;
             RawResult = new List<object[]>();
         }
 
-        public DbResult(string[] columns = null)
+        public SdbResult(string[] columns = null)
         {
             RawResult = new List<object[]>();
 
@@ -59,7 +59,7 @@ namespace GHSoftware.SimpleDb
             {
                 return default(T);
             }
-            else if (typeof(T) == typeof(DateTime?))
+            else if (obj is string && typeof(T) == typeof(DateTime?))
             {
                 string s = ConvertValue<string>(obj);
 
@@ -75,17 +75,17 @@ namespace GHSoftware.SimpleDb
             else if (typeof(T) == typeof(long))
             {
                 return (T)(object)Convert.ToInt64(obj);
-        }
+            }
             else if (typeof(T) == typeof(int))
-        {
+            {
                 return (T)(object)Convert.ToInt32(obj);
-        }
+            }
             else if (typeof(T).IsEnum)
-        {
+            {
                 return (T)Enum.Parse(typeof(T), obj.ToString());
-        }
+            }
             else
-        {
+            {
                 return (T)obj;
             }
         }
@@ -125,6 +125,26 @@ namespace GHSoftware.SimpleDb
         public bool Any()
         {
             return RawResult.Count > 0;
+        }
+
+        public T FirstOrDefault<T>(Func<SdbResult, object[], T> factoryMethod)
+        {
+            if (Any())
+            {
+                return factoryMethod(this, this.RawResult[0]);
+            }
+            else
+            {
+                return default(T);
+            }
+        }
+
+        public IEnumerable<T> List<T>(Func<SdbResult, object[], T> factoryMethod)
+        {
+            foreach (var row in RawResult)
+            {
+                yield return factoryMethod(this, row);
+            }
         }
     }
 }

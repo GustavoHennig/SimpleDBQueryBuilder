@@ -6,7 +6,7 @@ namespace GHSoftware.SimpleDb
 {
     internal class SqlWhereBuilder<TFieldEnumType>
     {
-        private string FieldQuotes;
+        private readonly string FieldQuotes;
         private string WhereSql = null;
         private List<(string key, object value, string op)> Where = null;
 

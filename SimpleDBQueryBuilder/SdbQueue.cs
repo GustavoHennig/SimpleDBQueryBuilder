@@ -15,12 +15,12 @@ namespace GHSoftware.SimpleDb
     /// TODO: Handle SQLITE_BUSY (não ocorre, mas é bom tratar)
     /// TODO: Test with exclusive lock mode, reusing connection
     /// </summary>
-    public class DbQueue : IDisposable
+    public class SdbQueue : IDisposable
     {
-        private readonly BlockingCollection<DbRequest> rwCommandsQueue;
+        private readonly BlockingCollection<SdbRequest> rwCommandsQueue;
 
         //public Task WorkerTask;
-        private BaseDbConn conn;
+        private readonly SdbConnection conn;
         private bool disposedValue;
         // public long CurrentSize = 0;
         public int RetryAttemptsWithConnectionFailure = 10000;
@@ -29,26 +29,26 @@ namespace GHSoftware.SimpleDb
         public Action OnQueryRunnerStopped = null;
 
 
-        private object _sync = new object();
+        private readonly object _sync = new object();
         public bool QueueProcessingIsRunning { get; private set; } = false;
 
-        public DbQueue(BaseDbConn conn, int queueSize = 400)
+        public SdbQueue(SdbConnection conn, int queueSize = 400)
         {
             // roCommandsQueue = rwCommandsQueue;
-            this.rwCommandsQueue = new BlockingCollection<DbRequest>(queueSize);
+            this.rwCommandsQueue = new BlockingCollection<SdbRequest>(queueSize);
             this.conn = conn;
         }
 
-        public Task<DbResult> ExecuteAsync(DbRequest dbRequest)
+        public Task<SdbResult> ExecuteAsync(SdbRequest dbRequest)
         {
-            dbRequest.TaskCompletionSource = new TaskCompletionSource<DbResult>();
+            dbRequest.TaskCompletionSource = new TaskCompletionSource<SdbResult>();
             Enqueue(dbRequest);
             return dbRequest.TaskCompletionSource.Task;
         }
 
-        public DbResult Execute(DbRequest dbRequest)
+        public SdbResult Execute(SdbRequest dbRequest)
         {
-            dbRequest.TaskCompletionSource = new TaskCompletionSource<DbResult>();
+            dbRequest.TaskCompletionSource = new TaskCompletionSource<SdbResult>();
             Enqueue(dbRequest);
             return dbRequest.TaskCompletionSource.Task.GetAwaiter().GetResult();
         }
@@ -58,7 +58,7 @@ namespace GHSoftware.SimpleDb
             return rwCommandsQueue.Count;
 
         }
-        private void Enqueue(DbRequest dbRequest)
+        private void Enqueue(SdbRequest dbRequest)
         {
             //if (dbRequest.Type == DbRequest.CmdType.Query || dbRequest.Type == DbRequest.CmdType.SingleResult)
             //    roCommandsQueue.Add(dbRequest);
@@ -76,12 +76,12 @@ namespace GHSoftware.SimpleDb
                     conn.InitializeFull();
                     conn.Open();
                     ProcessQueueItem(batchSize);
-                    OnLog?.Invoke($"ProcessQueueItem {conn.Name} stopped");
+                    OnLog?.Invoke($"ProcessQueueItem {conn.dbConfig.Name} stopped");
                     conn.Close();
                 }
                 catch (Exception ex)
                 {
-                    OnLog?.Invoke($"Fatal error, StartProcessItems {conn.Name} stopped: {ex}");
+                    OnLog?.Invoke($"Fatal error, StartProcessItems {conn.dbConfig.Name} stopped: {ex}");
                 }
                 finally
                 {
@@ -95,7 +95,7 @@ namespace GHSoftware.SimpleDb
         {
             int cntErros = 0;
 
-            DbRequest[] reqBatchSolo = new DbRequest[1];
+            SdbRequest[] reqBatchSolo = new SdbRequest[1];
             Stopwatch stopwatch = new Stopwatch();
 
             while (!disposedValue)
@@ -115,13 +115,13 @@ namespace GHSoftware.SimpleDb
                         //Se tem mais de 4 pega lotes de {batchSize} e executa dentro de uma transação isolada, em outra thread, mas com lock exclusivo
                         ExecuteBatch(rwCommandsQueue, batchSize);
                     }
-                    else if (rwCommandsQueue.TryTake(out DbRequest dbRequest, conn.IsOpen() ? 2000 : 60000))
+                    else if (rwCommandsQueue.TryTake(out SdbRequest dbRequest, conn.IsOpen() ? 2000 : 60000))
                     {
                         //Few records, run each alone
-                        
+
                         reqBatchSolo[0] = dbRequest;
                         ExecuteDbRequest(reqBatchSolo);
-                        
+
                         //OnLog?.Invoke($"{log} {lw.Elapsed}ms");
                         cntErros = 0;
                     }
@@ -132,7 +132,7 @@ namespace GHSoftware.SimpleDb
                 }
                 catch (ObjectDisposedException)
                 {
-                    OnLog?.Invoke($"ObjectDisposedException {conn?.Name}");
+                    OnLog?.Invoke($"ObjectDisposedException {conn?.dbConfig.Name}");
                 }
                 catch (Exception ex)
                 {
@@ -156,39 +156,39 @@ namespace GHSoftware.SimpleDb
             }
         }
 
-        private void ExecuteBatch(BlockingCollection<DbRequest> commandQueue, int count)
+        private void ExecuteBatch(BlockingCollection<SdbRequest> commandQueue, int count)
         {
-           
+
             Stopwatch stopwatch = new Stopwatch();
 
 
-            DbRequest[] reqBatch = new DbRequest[count];
-                int i;
-                for (i = 0; i < count; i++)
+            SdbRequest[] reqBatch = new SdbRequest[count];
+            int i;
+            for (i = 0; i < count; i++)
+            {
+                if (commandQueue.TryTake(out SdbRequest dbRequest1))
                 {
-                    if (commandQueue.TryTake(out DbRequest dbRequest1))
-                    {
-                        reqBatch[i] = dbRequest1;
-                    }
-                    else
-                    {
-                        reqBatch[i] = null;
-                        break;
-                    }
+                    reqBatch[i] = dbRequest1;
                 }
-
-                int remaining = commandQueue.Count;
-
-                ExecuteDbRequest(reqBatch);
-
-                if (remaining > 30)
+                else
                 {
-                    OnLog?.Invoke($"{conn.Name} run:{i} remaining:{remaining} {stopwatch.ElapsedMilliseconds}ms");
+                    reqBatch[i] = null;
+                    break;
                 }
+            }
+
+            int remaining = commandQueue.Count;
+
+            ExecuteDbRequest(reqBatch);
+
+            if (remaining > 30)
+            {
+                OnLog?.Invoke($"{conn.dbConfig.Name} run:{i} remaining:{remaining} {stopwatch.ElapsedMilliseconds}ms");
+            }
 
         }
 
-        private void ExecuteDbRequest(DbRequest[] dbRequests)
+        private void ExecuteDbRequest(SdbRequest[] dbRequests)
         {
 
             DbTransaction tx = null;
@@ -210,15 +210,15 @@ namespace GHSoftware.SimpleDb
 
                     try
                     {
-                      //  conn.Close();
-                        var result = conn.ExecuteDbRequest(dbRequest);
+                        //  conn.Close();
+                        var result = SdbRequestRunner.ExecuteDbRequest(conn.Connection, dbRequest, conn.dbConfig);
                         if (!dbRequest.TaskCompletionSource.TrySetResult(result))
                         {
                             OnLog?.Invoke("Wasn't able to set result");
                         }
 
                     }
-                    
+
                     catch (Exception e)
                     {
                         OnLog?.Invoke($"TaskCompletionSource.SetException {e}");
