@@ -71,6 +71,18 @@ namespace GHSoftware.SimpleDb
                 {
                     return default(T);
                 }
+            }else if (obj is string && (typeof(T) == typeof(DateTimeOffset) || typeof(T) == typeof(DateTimeOffset?)))
+            {
+                string s = ConvertValue<string>(obj);
+
+                if (DateTimeOffset.TryParse(s, out DateTimeOffset dt))
+                {
+                    return (T)(object)dt;
+                }
+                else
+                {
+                    return default(T);
+                }
             }
             else if (typeof(T) == typeof(long))
             {

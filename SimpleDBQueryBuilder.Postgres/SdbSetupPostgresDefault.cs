@@ -14,7 +14,7 @@ namespace GHSoftware.SimpleDb
     /// </summary>
     public class SdbSetupPostgresDefault : SdbSetup
     {
-        private string connectionString;
+        private readonly string connectionString;
 
         public SdbSetupPostgresDefault(string connectionString)
         {

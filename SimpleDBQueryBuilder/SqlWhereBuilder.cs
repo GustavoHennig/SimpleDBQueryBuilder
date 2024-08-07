@@ -44,6 +44,7 @@ namespace GHSoftware.SimpleDb
 
         public SqlWhereBuilder<TFieldEnumType> WhereCondIn(TFieldEnumType key, object[] values)
         {
+            if(values.Length == 0) return this;
             if (Where == null) Where = new List<(string key, object value, string op)>();
             Where.Add((key.ToString(), values, "in"));
             return this;

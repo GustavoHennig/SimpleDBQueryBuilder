@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace GHSoftware.SimpleDb
 {
     /// <summary>
-    /// Expermiental RequestsQueue
+    /// Experimental RequestsQueue
     /// 
     /// WARNING: This is not trustable, you may lose data when an error occurs
     /// 

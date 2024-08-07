@@ -18,7 +18,6 @@ namespace GHSoftware.SimpleDb
 
 
 
-
         public DbConnection Connection
         {
             get
